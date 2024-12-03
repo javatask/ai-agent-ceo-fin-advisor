@@ -1,0 +1,88 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  finance-tool
+
+  Sample SAM Template for finance-tool
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 256
+
+Parameters:
+  EmailFrom:
+    Type: String
+    Default: "test@example.com"
+    Description: Email address to send from
+  
+  EmailTo:
+    Type: String
+    Default: "test@example.com"
+    Description: Email address to send to
+  
+  BucketName:
+    Type: String
+    Default: "put-your-bucket-here"
+    Description: S3 bucket name for storing reports
+    
+  ReportsPrefix:
+    Type: String
+    Default: "reports"
+    Description: Prefix for report files in S3 bucket
+
+Resources:
+  PandasUtilsLayer:
+    Type: AWS::Serverless::LayerVersion
+    Metadata:
+      BuildMethod: python3.13
+    Properties:
+      LayerName: python-utils
+      Description: Pandas Python utilities
+      ContentUri: layers
+      CompatibleRuntimes:
+        - python3.13
+      RetentionPolicy: Retain
+
+  AnalyticsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: fin_data/
+      Handler: app.lambda_handler
+      Runtime: python3.13
+      Layers:
+        - !Ref PandasUtilsLayer
+      Environment:
+        Variables:
+          EMAIL_FROM: !Ref EmailFrom
+          EMAIL_TO: !Ref EmailTo
+          BUCKET_NAME: !Ref BucketName
+          REPORTS_PREFIX: !Ref ReportsPrefix
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref BucketName
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ses:SendEmail
+                - ses:SendRawEmail
+              Resource: "*"
+
+  AnalyticsFunctionPolicy:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref AnalyticsFunction
+      Principal: bedrock.amazonaws.com
+      SourceAccount: !Ref AWS::AccountId
+      SourceArn: !Sub arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:agent/*
+
+
+Outputs:
+  AnalyticsFunction:
+    Description: "Analytics Lambda Function ARN"
+    Value: !GetAtt AnalyticsFunction.Arn
+  AnalyticsFunctionIamRole:
+    Description: "Implicit IAM Role created for analytics function"
+    Value: !GetAtt AnalyticsFunctionRole.Arn

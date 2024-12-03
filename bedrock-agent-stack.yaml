@@ -1,0 +1,139 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "CloudFormation template for Bedrock Agent with Lambda Integration"
+
+Parameters:
+  LambdaFunctionArn:
+    Type: String
+    Description: ARN of the tool Lambda
+  AgentName:
+    Type: String
+    Description: Agent human readable name
+    Default: demo-ai-agent-ceo-fin-report
+
+Resources:
+  # Bedrock Agent Role
+  BedrockAgentRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AmazonBedrockAgentBedrockFoundationModelPolicyProd
+            Effect: Allow
+            Principal:
+              Service: bedrock.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+              ArnLike:
+                aws:SourceArn: !Sub arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:agent/*
+      
+      Policies:
+        - PolicyName: BedrockFoundationModelAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: AmazonBedrockAgentBedrockFoundationModelPolicyProd
+                Effect: Allow
+                Action: bedrock:InvokeModel
+                Resource:
+                  - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0
+        
+        - PolicyName: LambdaInvokePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource: !Ref LambdaFunctionArn
+
+  # Bedrock Agent
+  FinancialAnalysisAgent:
+    Type: AWS::Bedrock::Agent
+    Properties:
+      AgentName: !Ref AgentName
+      AgentResourceRoleArn: !GetAtt BedrockAgentRole.Arn
+      Description: Demo
+      FoundationModel: arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0
+      Instruction: |
+        You are an experienced financial analyst specializing in business finance. Your task is to prepare ad-hoc reports for the CEO based on the financial data provided and the specific request made. Follow these instructions carefully to produce a comprehensive and insightful report.
+
+        First, you will be presented with the financial data by using the function analyze_industry_performance
+        Next, you need to work on CEO's specific request.
+        If required, use the send_email function to send the HTML version of the report to the CEO's email.
+
+        Analyze the financial data in the context of the CEO's request. Consider the following steps:
+
+        1. Identify the key financial metrics relevant to the CEO's request.
+        2. Perform necessary calculations and comparisons.
+        3. Look for trends, patterns, or anomalies in the data.
+        4. Consider both short-term and long-term implications of the findings.
+
+        When preparing your report, adhere to these guidelines:
+
+        1. Be concise yet comprehensive.
+        2. Use clear, professional language.
+        3. Support your analysis with specific data points from the provided financial information.
+        4. Provide actionable insights and recommendations when appropriate.
+        5. Anticipate follow-up questions the CEO might have and address them proactively.
+
+      IdleSessionTTLInSeconds: 1800
+      ActionGroups:
+        - ActionGroupName: financial-analysis-actions
+          Description: Financial analysis and reporting functions
+          ActionGroupState: ENABLED
+          ActionGroupExecutor:
+            Lambda: !Ref LambdaFunctionArn
+          FunctionSchema:
+            Functions:
+              - Name: analyze_industry_performance
+                Description: |
+                  Analyzes financial performance metrics across a network of bakeries, providing insights into bookings, billings, and industry-specific trends.
+                  Industry Parameter Values Valid values:
+                  'schools' - Educational institutions and campus dining
+                  'cafes' - Coffee shops and small eateries
+                  'shops' - Retail bakery outlets
+                  'factories' - Industrial/manufacturing facilities
+                  'restaurants' - Full-service restaurants
+                  'hotels' - Hospitality sector
+                  Date Range Parameter Format: ('YYYY-MM-DD', 'YYYY-MM-DD')
+                  Valid ranges:
+                  Full year: date_from:'2024-01-01', date_to:'2024-12-31'
+                  Q1: date_from:'2024-01-01', date_to:'2024-03-31'
+                  Q2: date_from:'2024-04-01', date_to:'2024-06-30'
+                  Custom: Any date range within 2024
+            
+                Parameters:
+                  date_from:
+                    Type: string
+                    Description: date from in format YYYY-MM-DD
+                    Required: true
+                  date_to:
+                    Type: string
+                    Description: date to in format YYYY-MM-DD
+                    Required: true
+                  industry:
+                    Type: string
+                    Description: industry for each need to do analysis
+                    Required: true
+              - Name: send_email
+                Description: Function to send an email to CEO with arbitrary payload
+                Parameters:
+                  html_body:
+                    Type: string
+                    Description: HTML text of the email
+                    Required: true
+                  subject:
+                    Type: string
+                    Description: subject of email
+                    Required: true
+
+Outputs:
+  AgentId:
+    Description: Bedrock Agent ID
+    Value: !Ref FinancialAnalysisAgent
+  AgentArn:
+    Description: Bedrock Agent ARN
+    Value: !GetAtt FinancialAnalysisAgent.AgentArn
