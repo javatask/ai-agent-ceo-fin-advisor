@@ -70,12 +70,6 @@ sam local invoke AnalyticsFunction
 - Keep dependencies updated
 - Configure S3 permissions
 
-## Contributing
-
-1. Fork repository
-2. Create feature branch
-3. Submit pull request
-
 ## License
 
 MIT License
