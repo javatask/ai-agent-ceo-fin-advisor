@@ -79,12 +79,6 @@ aws cloudformation delete-stack --stack-name ceo-fin-report-{suffix}
 aws cloudformation delete-stack --stack-name ai-agent-finance-tool-{suffix}
 ```
 
-## ⚠️ Important Notes
-
-- **Costs**: Monitor AWS resource usage
-- **Security**: Protect AWS credentials
-- **Updates**: Check repository for latest features
-
 ## 📝 Contributing
 
 1. Fork repository
