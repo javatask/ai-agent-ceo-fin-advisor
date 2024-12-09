@@ -55,7 +55,7 @@ Resources:
     Properties:
       AgentName: !Ref AgentName
       AgentResourceRoleArn: !GetAtt BedrockAgentRole.Arn
-      Description: Demo
+      Description: Demo of CEO finance assistant
       FoundationModel: arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0
       Instruction: |
         You are an experienced financial analyst specializing in business finance. Your task is to prepare ad-hoc reports for the CEO based on the financial data provided and the specific request made. Follow these instructions carefully to produce a comprehensive and insightful report.
